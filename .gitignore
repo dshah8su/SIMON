@@ -1,0 +1,32 @@
+# SIMON — Git Ignore Rules
+
+# ── Secrets — NEVER commit these ─────────────────────────────────────────────
+.env
+config/token_cache.bin
+
+# ── Python cache files ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# ── Virtual environments ──────────────────────────────────────────────────────
+venv/
+.venv/
+env/
+ENV/
+
+# ── OS files ──────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ── IDE files ─────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.code-workspace
+
+# ── Test / scratch files ──────────────────────────────────────────────────────
+test*.py
+scratch*.py

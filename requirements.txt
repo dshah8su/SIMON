@@ -1,0 +1,41 @@
+# SIMON — Python Dependencies
+# Install all of these with: pip install -r requirements.txt
+#
+# Minimum Python version: 3.12
+
+# ── Microsoft Authentication ──────────────────────────────────────────────────
+# Handles signing in to your Microsoft account and managing the login token.
+# Used by: src/auth.py
+msal>=1.37.0
+
+# ── Microsoft Graph API requests ──────────────────────────────────────────────
+# Sends HTTP requests to Microsoft Graph to read/write OneNote.
+# Used by: src/onenote_client.py
+requests>=2.34.2
+
+# ── Environment variable loading ──────────────────────────────────────────────
+# Reads your Azure Client ID and settings from the .env file.
+# Used by: src/config.py
+python-dotenv>=1.2.2
+
+# ── MCP (Model Context Protocol) SDK ─────────────────────────────────────────
+# The core library that lets SIMON act as an MCP server Claude can talk to.
+# Includes FastMCP, OAuth server support, SSE transport, and the HTTP layer.
+# Used by: src/mcp_server.py, src/http_mcp_server.py
+mcp>=1.27.2
+
+# ── Data validation ───────────────────────────────────────────────────────────
+# Used internally by the MCP SDK to validate OAuth tokens, client data, etc.
+# Installed automatically with mcp, listed here for transparency.
+pydantic>=2.13.4
+
+# ── HTTP server (for Claude.ai integration) ───────────────────────────────────
+# Runs the SIMON HTTP MCP server that Claude.ai connects to over the internet.
+# Installed automatically with mcp, listed here for transparency.
+uvicorn>=0.48.0
+starlette>=1.2.0
+
+# ── Note: tkinter (used by the session popup) ────────────────────────────────
+# tkinter is built into Python and does NOT need to be installed separately.
+# If you get an error about tkinter on Linux, install it with:
+#   sudo apt install python3-tk
