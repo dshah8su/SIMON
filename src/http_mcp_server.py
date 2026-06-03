@@ -105,8 +105,10 @@ mcp = FastMCP(
     name="SIMON",
     instructions=(
         "SIMON saves content to Microsoft OneNote. "
-        "Use save_to_onenote to save any text the user wants to keep. "
-        "Use list_notebooks to show which notebooks are available. "
+        "IMPORTANT WORKFLOW: When the user asks to save, ALWAYS call list_sections first "
+        "to show them their existing sections, then ask which section to save to (or if they "
+        "want a new one). Only call save_to_onenote after the user has chosen a section. "
+        "Each save creates a new page in the chosen section. "
         "Always confirm with the returned OneNote URL after saving."
     ),
     auth_server_provider=SIMONOAuthProvider(),
@@ -132,6 +134,32 @@ def _get_client() -> OneNoteClient:
 # ── Tools ─────────────────────────────────────────────────────────────────────
 
 @mcp.tool()
+def list_sections(notebook: str = DEFAULT_NOTEBOOK) -> str:
+    """
+    List all existing sections in a OneNote notebook.
+
+    Call this BEFORE save_to_onenote to show the user their available sections
+    so they can choose where to save. The user may pick an existing section or
+    provide a new name to create one.
+
+    Args:
+        notebook: The notebook to list sections from. Defaults to "AI".
+
+    Returns:
+        A formatted list of section names, or a message if none exist yet.
+    """
+    try:
+        names = _get_client().list_sections_in_notebook(notebook)
+        if not names:
+            return f"No sections found in '{notebook}' yet. Type a name to create your first section."
+        lines = [f"📑 Sections in '{notebook}':"] + [f"  • {n}" for n in names]
+        lines.append("\nWhich section should this be saved to? You can also type a new name to create one.")
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"❌ Could not list sections: {exc}"
+
+
+@mcp.tool()
 def save_to_onenote(
     content: str,
     title: str = "",
@@ -139,13 +167,17 @@ def save_to_onenote(
     section: str = DEFAULT_SECTION,
 ) -> str:
     """
-    Save content to Microsoft OneNote.
+    Save content as a new page in a Microsoft OneNote section.
+    Each call creates a brand new page — existing pages are never overwritten.
+
+    Always call list_sections first so the user can choose which section to save to.
+    If the user names a section that does not exist, it will be created automatically.
 
     Args:
         content:  The text to save (plain text or markdown).
-        title:    Descriptive page title. If empty, a timestamped title is generated.
+        title:    Descriptive page title derived from the conversation topic.
         notebook: OneNote notebook name. Defaults to "AI".
-        section:  Section inside the notebook. Defaults to "Claude Conversation".
+        section:  Section chosen by the user. Created automatically if it does not exist.
     """
     try:
         formatter = ContentFormatter()

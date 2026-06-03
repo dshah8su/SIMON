@@ -1,31 +1,27 @@
 """
 SIMON - mcp_server.py
 ----------------------
-This is the bridge between Claude and OneNote.
+This is the bridge between Claude Code and OneNote.
 
 WHAT IS MCP?
 MCP (Model Context Protocol) is a standard way for Claude to talk to
-external tools. By running this server, Claude gains two new abilities:
-  1. save_to_onenote — save any text to OneNote
-  2. list_notebooks  — see what notebooks you have
-
-HOW IT CONNECTS TO CLAUDE:
-This server is registered in Claude Code via:
-  claude mcp add simon <python path> <this file path>
-
-When you type /simon in Claude Code, Claude calls save_to_onenote()
-through this server, which then calls onenote_client.py to do the actual save.
+external tools. By running this server, Claude gains three abilities:
+  1. list_sections   — show existing sections so user can choose where to save
+  2. save_to_onenote — save any text as a new page in a chosen section
+  3. list_notebooks  — see what notebooks are available
 
 FLOW:
-  User types /simon
+  User types SIMON or /simon
        ↓
-  Claude calls save_to_onenote(content, title)
+  Claude calls list_sections → shows existing sections to user
        ↓
-  This server receives the call
+  User picks a section (or names a new one)
+       ↓
+  Claude calls save_to_onenote(content, title, section)
        ↓
   OneNoteClient.save_page() sends it to Microsoft Graph API
        ↓
-  Page appears in OneNote
+  New page appears in OneNote under the chosen section
        ↓
   Claude confirms with the OneNote URL
 """
@@ -49,8 +45,10 @@ mcp = FastMCP(
     name="SIMON",
     instructions=(
         "SIMON saves content to Microsoft OneNote. "
-        "Use save_to_onenote to save any text the user wants to keep. "
-        "Use list_notebooks to show which notebooks are available. "
+        "IMPORTANT WORKFLOW: When the user asks to save, ALWAYS call list_sections first "
+        "to show them their existing sections, then ask which section to save to (or if they "
+        "want a new one). Only call save_to_onenote after the user has chosen a section. "
+        "Each save creates a new page — existing pages are never overwritten. "
         "Always confirm with the returned OneNote URL after saving."
     ),
 )
@@ -71,8 +69,39 @@ def _get_client() -> OneNoteClient:
 
 
 # ---------------------------------------------------------------------------
-# TOOL 1: save_to_onenote
-# This is the main tool — called when user types /simon
+# TOOL 1: list_sections
+# Called first so the user can choose where to save
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def list_sections(notebook: str = DEFAULT_NOTEBOOK) -> str:
+    """
+    List all existing sections in a OneNote notebook.
+
+    Call this BEFORE save_to_onenote so the user can choose which section
+    to save to. The user may pick an existing section or type a new name
+    to create one automatically.
+
+    Args:
+        notebook: The notebook to list sections from. Defaults to "AI".
+
+    Returns:
+        A formatted list of section names and a prompt for the user to choose.
+    """
+    try:
+        names = _get_client().list_sections_in_notebook(notebook)
+        if not names:
+            return f"No sections found in '{notebook}' yet. Type a name to create your first section."
+        lines = [f"📑 Sections in '{notebook}':"] + [f"  • {n}" for n in names]
+        lines.append("\nWhich section should this be saved to? You can also type a new name to create one.")
+        return "\n".join(lines)
+    except Exception as exc:
+        return f"Could not list sections: {exc}"
+
+
+# ---------------------------------------------------------------------------
+# TOOL 2: save_to_onenote
+# Called after the user has chosen a section
 # ---------------------------------------------------------------------------
 
 @mcp.tool()
@@ -83,13 +112,17 @@ def save_to_onenote(
     section: str = DEFAULT_SECTION,
 ) -> str:
     """
-    Save content to Microsoft OneNote.
+    Save content as a new page in a Microsoft OneNote section.
+    Each call creates a brand new page — existing pages are never overwritten.
+
+    Always call list_sections first so the user can choose which section to save to.
+    If the user names a section that does not exist, it will be created automatically.
 
     Args:
         content:  The text to save. Supports markdown formatting.
-        title:    The page title. A descriptive title is auto-generated if left empty.
-        notebook: Which notebook to save into. Defaults to "My Notebook".
-        section:  Which section to save into. Defaults to "Claude Conversation".
+        title:    Descriptive page title derived from the conversation topic.
+        notebook: Which notebook to save into. Defaults to "AI".
+        section:  Section chosen by the user. Created automatically if it does not exist.
 
     Returns:
         A confirmation message with a clickable link to the saved page.

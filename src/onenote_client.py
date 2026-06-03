@@ -40,9 +40,17 @@ class OneNoteClient:
         Returns a list of all OneNote notebooks in the user's account.
         Each item has: { "id": "...", "displayName": "My Notebook" }
         """
-        # $select=id,displayName means only fetch those two fields (faster)
         data = self._get("/me/onenote/notebooks", params={"$select": "id,displayName"})
         return data.get("value", [])
+
+    def list_sections_in_notebook(self, notebook_name: str = DEFAULT_NOTEBOOK) -> list[str]:
+        """
+        Returns the display names of all sections in a given notebook.
+        Creates the notebook first if it doesn't exist yet.
+        """
+        notebook_id = self._get_or_create_notebook(notebook_name)
+        sections = self._list_sections(notebook_id)
+        return [s["displayName"] for s in sections]
 
     def save_page(
         self,
