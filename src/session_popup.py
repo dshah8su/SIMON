@@ -105,15 +105,15 @@ def build_popup(ngrok_url: str):
     tk.Frame(root, height=1, bg=DIVIDER).pack(fill="x", padx=PAD, pady=(14, 0))
 
     # ── Steps ────────────────────────────────────────────────────────────────
-    tk.Label(root, text="How to update Claude.ai connector",
+    tk.Label(root, text="First time only — set up Claude.ai connector once",
              font=("Segoe UI", 9, "bold"), fg=TEXT, bg=BG).pack(anchor="w", padx=PAD, pady=(12, 4))
 
     steps = [
         ("1", "Open Claude.ai  →  Settings  →  Integrations / Connectors"),
-        ("2", "Delete the existing SIMON connector (URL has changed)"),
-        ("3", "Click  Add  →  set Name: SIMON"),
-        ("4", "Paste the URL above  (ending in /sse)  →  Save"),
-        ("5", "A browser tab opens — click  Approve  to authorise"),
+        ("2", "Click  Add  →  set Name: SIMON"),
+        ("3", "Paste the URL above  (ending in /sse)  →  Save"),
+        ("4", "A browser tab opens — click  Approve  to authorise"),
+        ("5", "Done — this URL is fixed, never needs updating again"),
     ]
 
     steps_frame = tk.Frame(root, bg=BG)

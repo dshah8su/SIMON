@@ -1,10 +1,12 @@
 # SIMON + ngrok Startup Script
-# Starts ngrok, gets the public URL, starts SIMON, then shows a popup with steps.
+# Uses a fixed static ngrok domain — URL never changes, connector set up once.
 
-$SIMON_DIR = Split-Path -Parent $MyInvocation.MyCommand.Path
-$SERVER_SCRIPT  = Join-Path $SIMON_DIR "src\http_mcp_server.py"
-$POPUP_SCRIPT   = Join-Path $SIMON_DIR "src\session_popup.py"
-$PORT = 8000
+$SIMON_DIR   = Split-Path -Parent $MyInvocation.MyCommand.Path
+$SERVER_SCRIPT = Join-Path $SIMON_DIR "src\http_mcp_server.py"
+$POPUP_SCRIPT  = Join-Path $SIMON_DIR "src\session_popup.py"
+$PORT        = 8000
+$STATIC_DOMAIN = "curtly-resonate-smilingly.ngrok-free.dev"
+$PUBLIC_URL    = "https://$STATIC_DOMAIN"
 
 Write-Host ""
 Write-Host "  Starting SIMON..." -ForegroundColor Cyan
@@ -29,33 +31,17 @@ Get-Process -Name python -ErrorAction SilentlyContinue | ForEach-Object {
 Get-Process -Name ngrok -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
 Start-Sleep -Seconds 1
 
-# Start ngrok in background
-Write-Host "  Starting ngrok tunnel..." -ForegroundColor Gray
-Start-Process $ngrok -ArgumentList "http $PORT" -WindowStyle Hidden
+# Start ngrok with fixed static domain
+Write-Host "  Starting ngrok tunnel ($STATIC_DOMAIN)..." -ForegroundColor Gray
+Start-Process $ngrok -ArgumentList "http --url=$STATIC_DOMAIN $PORT" -WindowStyle Hidden
+Start-Sleep -Seconds 3
 
-# Wait for ngrok and get public URL
-$publicUrl = $null
-for ($i = 0; $i -lt 15; $i++) {
-    Start-Sleep -Seconds 1
-    try {
-        $tunnels = (Invoke-RestMethod -Uri "http://localhost:4040/api/tunnels" -ErrorAction Stop).tunnels
-        $publicUrl = $tunnels | Where-Object { $_.public_url -like "https://*" } |
-                     Select-Object -First 1 -ExpandProperty public_url
-        if ($publicUrl) { break }
-    } catch {}
-}
+Write-Host "  URL: $PUBLIC_URL" -ForegroundColor Green
 
-if (-not $publicUrl) {
-    Write-Host "ERROR: Could not get ngrok URL. Check ngrok auth token." -ForegroundColor Red
-    exit 1
-}
-
-Write-Host "  ngrok URL: $publicUrl" -ForegroundColor Green
-
-# Start SIMON HTTP MCP server with the public URL
+# Start SIMON HTTP MCP server with the fixed public URL
 Write-Host "  Starting SIMON server..." -ForegroundColor Gray
 $env:PYTHONPATH = $SIMON_DIR
-Start-Process python -ArgumentList "`"$SERVER_SCRIPT`" --public-url `"$publicUrl`"" -WorkingDirectory $SIMON_DIR -WindowStyle Hidden
+Start-Process python -ArgumentList "`"$SERVER_SCRIPT`" --public-url `"$PUBLIC_URL`"" -WorkingDirectory $SIMON_DIR -WindowStyle Hidden
 
 Start-Sleep -Seconds 3
 Write-Host "  SIMON is ready." -ForegroundColor Green
