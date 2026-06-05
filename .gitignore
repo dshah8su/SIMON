@@ -1,0 +1,7 @@
+.env
+config/token_cache.bin
+__pycache__/
+*.pyc
+*.pyo
+test3.py
+start_simon_ngrok.ps1
