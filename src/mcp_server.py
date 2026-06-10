@@ -49,8 +49,14 @@ mcp = FastMCP(
     name="SIMON",
     instructions=(
         "SIMON saves content to Microsoft OneNote. "
-        "Use save_to_onenote to save any text the user wants to keep. "
-        "Use list_notebooks to show which notebooks are available. "
+        "Two modes of operation: "
+        "(1) EXPLICIT OVERRIDE — if the user names a specific section, use it exactly as given. "
+        "Do not call list_sections_with_context. Do not analyze the content. Just save there. "
+        "(2) AUTO-ROUTING — if the user gives no section, call list_sections_with_context first, "
+        "read the section names and recent page titles, then pick the best-matching existing section. "
+        "If no existing section fits, derive a short (2-3 word) name from the topic and create it. "
+        "Only ask the user when two sections are genuinely equally close. "
+        "Use save_to_onenote to save. Use list_notebooks to show available notebooks. "
         "Always confirm with the returned OneNote URL after saving."
     ),
 )
@@ -132,7 +138,52 @@ def save_to_onenote(
 
 
 # ---------------------------------------------------------------------------
-# TOOL 2: list_notebooks
+# TOOL 2: list_sections_with_context
+# Called before saving — lets Claude see existing sections and recent page
+# titles so it can route content to the right section without asking the user.
+# ---------------------------------------------------------------------------
+
+@mcp.tool()
+def list_sections_with_context(notebook: str = DEFAULT_NOTEBOOK) -> str:
+    """
+    Lists all sections in a notebook with their 5 most recent page titles.
+
+    Call this BEFORE save_to_onenote to decide which section the content belongs in.
+    The recent page titles reveal each section's topic so you can judge whether
+    the new content fits an existing section or needs a new one.
+
+    Args:
+        notebook: The notebook to inspect. Defaults to the configured default notebook.
+
+    Returns:
+        A formatted list of sections and their recent page titles.
+    """
+    try:
+        sections = _get_client().list_sections_with_context(notebook)
+
+        if not sections:
+            return (
+                f'No sections found in "{notebook}". '
+                "A new section will be created on first save."
+            )
+
+        lines = [f'Sections in "{notebook}":']
+        for sec in sections:
+            recent = sec["recent_pages"]
+            if recent:
+                pages_preview = ", ".join(f'"{t}"' for t in recent)
+                lines.append(f'  - {sec["name"]}  (recent pages: {pages_preview})')
+            else:
+                lines.append(f'  - {sec["name"]}  (no pages yet)')
+
+        return "\n".join(lines)
+
+    except Exception as exc:
+        return f"Could not list sections: {exc}"
+
+
+# ---------------------------------------------------------------------------
+# TOOL 3: list_notebooks
 # Shows the user what notebooks are available
 # ---------------------------------------------------------------------------
 
