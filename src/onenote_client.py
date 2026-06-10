@@ -44,6 +44,25 @@ class OneNoteClient:
         data = self._get("/me/onenote/notebooks", params={"$select": "id,displayName"})
         return data.get("value", [])
 
+    def list_sections_with_context(self, notebook_name: str) -> list[dict]:
+        """
+        Returns all sections in a notebook, each with up to 5 recent page titles.
+        Used by the routing layer so Claude can match content to the right section.
+
+        Returns a list of dicts: { "name": str, "id": str, "recent_pages": [str, ...] }
+        """
+        notebook_id = self._get_or_create_notebook(notebook_name)
+        sections = self._list_sections(notebook_id)
+        result = []
+        for sec in sections:
+            recent = self._get_recent_page_titles(sec["id"], limit=5)
+            result.append({
+                "name": sec["displayName"],
+                "id": sec["id"],
+                "recent_pages": recent,
+            })
+        return result
+
     def save_page(
         self,
         content: str,
@@ -113,6 +132,18 @@ class OneNoteClient:
     # =========================================================================
     # SECTION HELPERS
     # =========================================================================
+
+    def _get_recent_page_titles(self, section_id: str, limit: int = 5) -> list[str]:
+        """Returns titles of the most recent pages in a section, newest first."""
+        data = self._get(
+            f"/me/onenote/sections/{section_id}/pages",
+            params={
+                "$select": "title",
+                "$orderby": "lastModifiedDateTime desc",
+                "$top": limit,
+            },
+        )
+        return [p.get("title", "Untitled") for p in data.get("value", [])]
 
     def _list_sections(self, notebook_id: str) -> list[dict]:
         """
